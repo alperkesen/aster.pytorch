@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=0 python demo.py \
+CUDA_VISIBLE_DEVICES=0 python demo_dataset.py \
   --height 64 \
   --width 256 \
   --voc_type ALLCASES_SYMBOLS \
