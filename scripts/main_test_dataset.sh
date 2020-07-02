@@ -14,5 +14,5 @@ CUDA_VISIBLE_DEVICES=0 python demo_dataset.py \
   --num_control_points 20 \
   --resume ../demo.pth.tar \
   --test_path ../data.jpg \
-  --images_path ../imgs/ \
-  --box_path ../labels/
+  --images_path ../icdar2015/test_img \
+  --box_path ../icdar2015/test_gt

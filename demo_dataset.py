@@ -64,17 +64,17 @@ class DataInfo(object):
     self.rec_num_classes = len(self.voc)
 
 
-def recognizer(img_path, gt_path, model, dataset_info, savedir="outputs/",
-               only_price=False):
+def recognizer(img_path, gt_path, model, device, dataset_info,
+               savedir="outputs/", only_price=False):
     gt_file = open(gt_path, "r")
 
-    save_filename = gt_name
-    save_path = os.path.join(save_dir, save_filename)
+    save_filename = os.path.basename(gt_path)
+    save_path = os.path.join(savedir, save_filename)
 
     if not os.path.isdir(savedir):
       os.mkdir(savedir)
 
-    fp = open(save_path, "r")
+    fp = open(save_path, "w")
 
     bounding_boxes = [[int(coord) if coord.isnumeric() else coord
                        for coord in bbox.split('\n')[0].split(',', 8)]
@@ -97,13 +97,13 @@ def recognizer(img_path, gt_path, model, dataset_info, savedir="outputs/",
         cropped_img = img.crop((x1, y3, x2, y1))
             
 
-        img = image_process(cropped_img.convert('RGB'))
+        cropped_img = image_process(cropped_img.convert('RGB'))
 
         with torch.no_grad():
-            img = img.to(device)
+            cropped_img = cropped_img.to(device)
 
         input_dict = {}
-        input_dict['images'] = img.unsqueeze(0)
+        input_dict['images'] = cropped_img.unsqueeze(0)
 
         rec_targets = torch.IntTensor(1, args.max_len).fill_(1)
         rec_targets[:, args.max_len - 1] = dataset_info.char2id[
@@ -172,11 +172,13 @@ def main(args):
   for img in imgs:
       image_path = os.path.join(images_path, img)
 
+      print("Image path:", image_path)
+
       gt_name = img.replace('jpg', 'txt')
       gt_path = os.path.join(box_path, gt_name)
 
-      recognizer(img_path, gt_path, model, dataset_info, savedir="outputs/",
-                 only_price=False):
+      recognizer(image_path, gt_path, model, device, dataset_info,
+       savedir="outputs/", only_price=False)
 
 
 if __name__ == '__main__':
