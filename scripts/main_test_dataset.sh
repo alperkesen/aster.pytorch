@@ -13,4 +13,6 @@ CUDA_VISIBLE_DEVICES=0 python demo_dataset.py \
   --stn_activation none \
   --num_control_points 20 \
   --resume ../demo.pth.tar \
-  --test_path ../data.jpg
+  --test_path ../data.jpg \
+  --images_path ../imgs/ \
+  --box_path ../labels/

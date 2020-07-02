@@ -31,9 +31,7 @@ from lib.utils.labelmaps import get_vocabulary, labels2strs
 
 global_args = get_args(sys.argv[1:])
 
-def image_process(image_path, imgH=32, imgW=100, keep_ratio=False, min_ratio=1):
-  img = Image.open(image_path).convert('RGB')
-
+def image_process(img, imgH=32, imgW=100, keep_ratio=False, min_ratio=1):
   if keep_ratio:
     w, h = img.size
     ratio = w / float(h)
@@ -64,6 +62,69 @@ class DataInfo(object):
     self.id2char = dict(zip(range(len(self.voc)), self.voc))
 
     self.rec_num_classes = len(self.voc)
+
+
+def recognizer(img_path, gt_path, model, dataset_info, savedir="outputs/",
+               only_price=False):
+    gt_file = open(gt_path, "r")
+
+    save_filename = gt_name
+    save_path = os.path.join(save_dir, save_filename)
+
+    if not os.path.isdir(savedir):
+      os.mkdir(savedir)
+
+    fp = open(save_path, "r")
+
+    bounding_boxes = [[int(coord) if coord.isnumeric() else coord
+                       for coord in bbox.split('\n')[0].split(',', 8)]
+                      for bbox in gt_file.readlines()]
+
+    img = Image.open(img_path)
+    img_width, img_height = img.width, img.height
+
+    for bbox in bounding_boxes:
+        label = bbox[8]
+
+        if only_price and not type(label) == int and len(label) == 1:
+            continue
+
+        x1, y1 = bbox[0], bbox[1]
+        x2, y2 = bbox[2], bbox[3]
+        x3, y3 = bbox[4], bbox[5]
+        x4, y4 = bbox[6], bbox[7]
+        
+        cropped_img = img.crop((x1, y3, x2, y1))
+            
+
+        img = image_process(cropped_img.convert('RGB'))
+
+        with torch.no_grad():
+            img = img.to(device)
+
+        input_dict = {}
+        input_dict['images'] = img.unsqueeze(0)
+
+        rec_targets = torch.IntTensor(1, args.max_len).fill_(1)
+        rec_targets[:, args.max_len - 1] = dataset_info.char2id[
+          dataset_info.EOS]
+
+        input_dict['rec_targets'] = rec_targets
+        input_dict['rec_lengths'] = [args.max_len]
+
+        output_dict = model(input_dict)
+        pred_rec = output_dict['output']['pred_rec']
+        pred_str, _ = get_str_list(pred_rec, input_dict['rec_targets'],
+                                   dataset=dataset_info)
+
+        pred_label = pred_str[0]
+        print('Recognition result: {0}'.format(pred_label))
+
+        txt_line = "{},{},{},{},{},{},{},{},{}\n".format(x1, y1, x2, y2,
+                                                         x3, y3, x4, y4,
+                                                         pred_label)
+        fp.write(txt_line)
+    fp.close()
 
 
 def main(args):
@@ -104,24 +165,18 @@ def main(args):
 
   # Evaluation
   model.eval()
-  test_path = args.test_path
-  imgs = os.listdir(test_path)
+  images_path = args.images_path
+  box_path = args.box_path
+  imgs = os.listdir(images_path)
 
   for img in imgs:
-      image_path = os.path.join(test_path, img)
-      img = image_process(image_path)
-      with torch.no_grad():
-          img = img.to(device)
-      input_dict = {}
-      input_dict['images'] = img.unsqueeze(0)
-      rec_targets = torch.IntTensor(1, args.max_len).fill_(1)
-      rec_targets[:,args.max_len-1] = dataset_info.char2id[dataset_info.EOS]
-      input_dict['rec_targets'] = rec_targets
-      input_dict['rec_lengths'] = [args.max_len]
-      output_dict = model(input_dict)
-      pred_rec = output_dict['output']['pred_rec']
-      pred_str, _ = get_str_list(pred_rec, input_dict['rec_targets'], dataset=dataset_info)
-      print('Recognition result: {0}'.format(pred_str[0]))
+      image_path = os.path.join(images_path, img)
+
+      gt_name = img.replace('jpg', 'txt')
+      gt_path = os.path.join(box_path, gt_name)
+
+      recognizer(img_path, gt_path, model, dataset_info, savedir="outputs/",
+                 only_price=False):
 
 
 if __name__ == '__main__':
